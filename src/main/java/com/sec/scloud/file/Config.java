@@ -8,6 +8,6 @@ public class Config {
 
     public static final int TIMEOUT_MAX = 120000;
 
-    public static final String CONNECTION_STRING = "";
+    public static final String CONNECTION_STRING = System.getenv("STORAGE_CONNECTION_STRING");
     public static final String CONTAINER_NAME = "javaconcurrentblockblob";
 }
