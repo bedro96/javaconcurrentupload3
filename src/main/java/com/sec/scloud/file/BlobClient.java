@@ -66,6 +66,6 @@ public class BlobClient {
             }
             Thread.sleep(1000);
         }
-        System.out.println("The Blob exists");              
+        System.out.println("The Blob exists.");              
     }
 }
