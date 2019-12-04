@@ -57,7 +57,7 @@ public class BlobClient {
                 e.printStackTrace();
                 if(e.toString().contains("There is currently a lease on the blob and no lease ID was specified in the request") || 
                    e.toString().contains("There is already a lease present")){
-                       System.out.println("This is expected exception.");
+                       System.out.println("This is expected exception. Will retake this loop.");
                        continue;
                 } else {
                     System.out.println("None expected exception occurred. Throwing exception");
@@ -65,9 +65,7 @@ public class BlobClient {
                 }                       
             }
             Thread.sleep(1000);
-        } // else {
-            //     System.out.println("\nBlob does exits.");
-            // }   
+        }
         System.out.println("The Blob exists");              
     }
 }
