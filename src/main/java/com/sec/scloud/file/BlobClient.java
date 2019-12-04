@@ -6,6 +6,7 @@ import com.microsoft.azure.storage.blob.BlobRequestOptions;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
 import com.microsoft.azure.storage.blob.CloudBlobContainer;
 import com.microsoft.azure.storage.blob.CloudBlockBlob;
+import com.microsoft.azure.storage.AccessCondition;
 import java.io.InputStream;
 
 public class BlobClient {
@@ -36,37 +37,24 @@ public class BlobClient {
             options.setMaximumExecutionTimeInMs(Config.TIMEOUT_MAX);
 
             CloudBlockBlob blob = container.getBlockBlobReference(path);
-            // Adding lines from here 
+            // Adding lines from here
+            AccessCondition blobAccessCondition = new AccessCondition();
             
-            String leaseID = "";
-            String leaseID2 = "";
-            
-            System.out.println("\n\tAcquiring a lease on the blog to prevent writes and deletes.");
-            blob.breakLease(0);
-            blob.upload(is, 0, null, options, null);
-            // leaseID = blob.acquireLease(15,null);
-            
-            try {
-                leaseID = blob.acquireLease(15,null);
-                System.out.println(String.format("\t\tSuccessfully acquired a lease on blob %s. Lease state: %s, Lease id: %s.", blob.getName(), blob.getProperties().getLeaseStatus().toString(), leaseID));
+                         
+            if(!blob.exists()){
+                System.out.println("\nBlob doesn't exists.");
+                System.out.println("\nSetting up the content type and 0 byte on the blob.");
                 blob.getProperties().setContentType(contentType);
-                blob.upload(is, length, null, options, null);
-            } catch (Exception e) {
-                e.printStackTrace();
-                if(e.getCause() instanceof StorageException) {
-                    StorageException storageException = (StorageException) e.getCause();
-                    System.out.println("This is the errorcode");
-                    System.out.println(storageException.getErrorCode());
-                }
-            }
-            finally {
-                blob.breakLease(0);
-                System.out.println(String.format("\t\tSuccessfully broke the lease on blob %s. Lease state: %s.", blob.getName(), blob.getProperties().getLeaseStatus().toString()));
-            }
-            // leaseID2 = blob.acquireLease(15,null);
-            
-            // blob.breakLease(0);
-            
+                blob.upload(is, 0, null, options, null);
+                System.out.println("\nAquiring a lease againt this blob and assign to blobAccessCondition");
+                blobAccessCondition.setLeaseID(blob.acquireLease(15,null));
+                System.out.println("\nWriting full content with lease ID aquired.");
+                blob.upload(is, length, blobAccessCondition, options, null);
+                System.out.println("\nRelease the Lease on the blob.");
+                blob.releaseLease(blobAccessCondition);
+            } else {
+                System.out.println("\nBlob does exits.");
+            }          
  
         } catch (Exception e) {
             e.printStackTrace();
