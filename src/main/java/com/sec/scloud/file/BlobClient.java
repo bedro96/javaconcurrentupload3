@@ -29,21 +29,22 @@ public class BlobClient {
     }
 
     public void upload(InputStream is, String path, long length, String contentType) throws Exception {
-        try {
-            BlobRequestOptions options = new BlobRequestOptions();
-            options.setConcurrentRequestCount(1);
-            options.setSingleBlobPutThresholdInBytes(SINGLE_BLOB_PUT_THRESHOLD_BYTES);
-            options.setTimeoutIntervalInMs(timeout);
-            options.setMaximumExecutionTimeInMs(Config.TIMEOUT_MAX);
+        BlobRequestOptions options = new BlobRequestOptions();
+        options.setConcurrentRequestCount(1);
+        options.setSingleBlobPutThresholdInBytes(SINGLE_BLOB_PUT_THRESHOLD_BYTES);
+        options.setTimeoutIntervalInMs(timeout);
+        options.setMaximumExecutionTimeInMs(Config.TIMEOUT_MAX);
 
-            CloudBlockBlob blob = container.getBlockBlobReference(path);
-            // Adding lines from here
-            AccessCondition blobAccessCondition = new AccessCondition();
+        CloudBlockBlob blob = container.getBlockBlobReference(path);
+        // Adding AccessCondition to contain lease ID
+        AccessCondition blobAccessCondition = new AccessCondition();       
+
+        while(!blob.exists()){
+
+            System.out.println("\nBlob doesn't exists.");
+            System.out.println("\nSetting up the content type and 0 byte on the blob.");
             
-                         
-            if(!blob.exists()){
-                System.out.println("\nBlob doesn't exists.");
-                System.out.println("\nSetting up the content type and 0 byte on the blob.");
+            try {
                 blob.getProperties().setContentType(contentType);
                 blob.upload(is, 0, null, options, null);
                 System.out.println("\nAquiring a lease againt this blob and assign to blobAccessCondition");
@@ -52,20 +53,21 @@ public class BlobClient {
                 blob.upload(is, length, blobAccessCondition, options, null);
                 System.out.println("\nRelease the Lease on the blob.");
                 blob.releaseLease(blobAccessCondition);
-            } else {
-                System.out.println("\nBlob does exits.");
-            }          
- 
-        } catch (Exception e) {
-            e.printStackTrace();
-            if (e.getCause() instanceof StorageException) {
-                StorageException storageException = (StorageException) e.getCause();
-                System.out.println(storageException.getErrorCode());
-                System.out.println(storageException.getExtendedErrorInformation().getErrorMessage());
-                System.out.println(storageException.getExtendedErrorInformation().getAdditionalDetails());
+            } catch (Exception e) {
+                e.printStackTrace();
+                if(e.toString().contains("There is currently a lease on the blob and no lease ID was specified in the request") || 
+                   e.toString().contains("There is already a lease present")){
+                       System.out.println("This is expected exception.");
+                       continue;
+                } else {
+                    System.out.println("None expected exception occurred. Throwing exception");
+                    throw e;
+                }                       
             }
-            throw e;
-        }
+            Thread.sleep(1000);
+        } // else {
+            //     System.out.println("\nBlob does exits.");
+            // }   
+        System.out.println("The Blob exists");              
     }
-
 }
