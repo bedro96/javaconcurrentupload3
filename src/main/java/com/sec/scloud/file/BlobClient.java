@@ -28,7 +28,7 @@ public class BlobClient {
         }
     }
 
-    public void upload(InputStream is, String path, long length, String contentType) throws Exception {
+    public void upload(final InputStream is, final String path, final long length, final String contentType) throws Exception {
         BlobRequestOptions options = new BlobRequestOptions();
         options.setConcurrentRequestCount(1);
         options.setSingleBlobPutThresholdInBytes(SINGLE_BLOB_PUT_THRESHOLD_BYTES);
@@ -37,8 +37,8 @@ public class BlobClient {
 
         CloudBlockBlob blob = container.getBlockBlobReference(path);
         // Adding AccessCondition to contain lease ID
-        AccessCondition blobAccessCondition = new AccessCondition();       
-
+        AccessCondition blobAccessCondition = new AccessCondition();    
+         
         while(!blob.exists()){
 
             System.out.println("\nBlob doesn't exists.");
@@ -46,26 +46,28 @@ public class BlobClient {
             
             try {
                 blob.getProperties().setContentType(contentType);
+                //Creating 0 byte empty blob, since eTag only created after the blob is created.
                 blob.upload(is, 0, null, options, null);
-                System.out.println("\nAquiring a lease againt this blob and assign to blobAccessCondition");
-                blobAccessCondition.setLeaseID(blob.acquireLease(15,null));
-                System.out.println("\nWriting full content with lease ID aquired.");
+                System.out.println("Etags after creating 0 byte blob : " + blob.getProperties().getEtag());
+                //The result is something like this "0x8D779465B2AD7CB"
+                blobAccessCondition = AccessCondition.generateIfMatchCondition(blob.getProperties().getEtag());
+                System.out.println("Writing full content with known eTag.");
                 blob.upload(is, length, blobAccessCondition, options, null);
-                System.out.println("\nRelease the Lease on the blob.");
-                blob.releaseLease(blobAccessCondition);
-            } catch (Exception e) {
+            } catch (final Exception e) {
                 e.printStackTrace();
-                if(e.toString().contains("There is currently a lease on the blob and no lease ID was specified in the request") || 
-                   e.toString().contains("There is already a lease present")){
-                       System.out.println("This is expected exception. Will retake this loop.");
-                       continue;
-                } else {
-                    System.out.println("None expected exception occurred. Throwing exception");
-                    throw e;
-                }                       
+                if (e.getCause() instanceof StorageException) {
+                StorageException storageException = (StorageException) e.getCause();
+                System.out.println(storageException.getErrorCode());
+                //Expected Error Code : ConditionNotMet
+                System.out.println(storageException.getExtendedErrorInformation().getErrorMessage());
+                //Expected Error Message : The condition specified using HTTP conditional header(s) is not met.
+                System.out.println(storageException.getExtendedErrorInformation().getAdditionalDetails());
+                continue;
+                }           
             }
             Thread.sleep(1000);
         }
         System.out.println("The Blob exists.");              
     }
+
 }
