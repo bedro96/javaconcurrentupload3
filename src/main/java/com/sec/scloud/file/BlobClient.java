@@ -46,12 +46,7 @@ public class BlobClient {
             
             try {
                 blob.getProperties().setContentType(contentType);
-                //Creating 0 byte empty blob, since eTag only created after the blob is created.
-                blob.upload(is, 0, null, options, null);
-                System.out.println("Etags after creating 0 byte blob : " + blob.getProperties().getEtag());
-                //The result is something like "0x8D779465B2AD7CB"
-                blobAccessCondition = AccessCondition.generateIfMatchCondition(blob.getProperties().getEtag());
-                System.out.println("Writing full content with known eTag.");
+                blobAccessCondition = AccessCondition.generateIfNoneMatchCondition("*");
                 blob.upload(is, length, blobAccessCondition, options, null);
             } catch (final Exception e) {
                 e.printStackTrace();
